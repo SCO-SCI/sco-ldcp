@@ -407,11 +407,7 @@ function resolveModelEntry(filter, displayName) {
   return null;
 }
 
-// --- Data-driven grid-bound helpers -------------------------------------
-// These read the true per-filter/per-model grid extents from the API data
-// (currentModelEntry) instead of hardcoded literals, so each filter respects
-// its own grid. The "other model" helper decides whether a "switch model"
-// suggestion is meaningful: a filter must actually provide the other model.
+
 
 function activeBounds() {
   // Bounds for the currently selected filter + model, or null if unavailable.
@@ -545,9 +541,7 @@ function hasSolarMismatch() {
   if (Math.abs(lookupBaseline.feh) < 0.05) return false;
   const teff = lookupBaseline.teff;
   if (typeof teff !== 'number') return false;
-  // ATLAS is the metallicity-capable alternative; the mismatch only matters if
-  // switching to ATLAS would actually be feasible at this Teff. Derive ATLAS's
-  // real Teff floor from the filter's grid rather than assuming 3500.
+  
   const atlasEntry = currentFilter
     ? currentFilter.models.find(m => m.model === 'ATLAS')
     : null;

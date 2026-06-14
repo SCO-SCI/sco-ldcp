@@ -5,22 +5,7 @@ from bisect import bisect_left
 from typing import Dict, List, Optional, Tuple
 
 
-# ---------------------------------------------------------------------------
-# Filter registry
-#
-# Power-2 limb-darkening coefficients (g, h) from Claret & Southworth (2022,
-# 2023) plus the SCO CBB power-2 table. Compared with the quadratic system
-# this set GAINS Gaia, DROPS CoRoT and Spitzer (no power-2 source), and keeps
-# CBB. Each filter names a single source tag; that tag determines which file
-# (and which models) supply its data.
-#
-#   CS22  -> ATLAS, multi-metallicity  (Claret & Southworth 2022, A&A 664 A128)
-#   CS23  -> PHOENIX-COND, solar only  (Claret & Southworth 2023, A&A 674 A63)
-#   CBBP2 -> ATLAS, multi-metallicity  (SCO CBB power-2 table)
-#
-# Filters whose ATLAS data come from CS22 and PHOENIX data from CS23 are tagged
-# "CS22_CS23". CHEOPS exists only in CS23 (PHOENIX). CBB exists only in CBBP2.
-# ---------------------------------------------------------------------------
+
 FILTER_REGISTRY: List[Dict] = [
     # Johnson-Cousins (ATLAS from CS22 table3, PHOENIX from CS23 table10)
     {"code": "U",  "name": "Johnson U",      "category": "Johnson-Cousins", "source": "CS22_CS23"},
@@ -97,11 +82,7 @@ def _display_model(filter_code: str, model: str) -> str:
 
 
 
-# ---------------------------------------------------------------------------
-# Grid storage. Coefficients are the power-2 pair (g, h), stored in the same
-# two-slot tuple the quadratic system used for (u1, u2). The interpolation
-# machinery is identical; only the coefficient meaning differs.
-# ---------------------------------------------------------------------------
+
 Grid = Dict[str, object]
 _TABLES: Dict[Tuple[str, str, str], Grid] = {}
 
@@ -133,34 +114,11 @@ def _finalize_tables() -> None:
 
 
 
-# ---------------------------------------------------------------------------
-# Parsers
-#
-# All three power-2 file formats are whitespace-tokenised (verified: collision-
-# free on every file, including the 12-band CS23 tables whose VizieR ReadMe byte
-# ranges are internally inconsistent). Each parser is given the ordered list of
-# band codes in the file so it can distribute the per-band coefficient columns
-# into the correct per-filter grids.
-#
-# Band order within every CS22/CS23 file: parameters first (logg, Teff, [M/H],
-# xi), then all g across bands, then all h, then (CS23 only) all mu_cri, then
-# all chi2. The Stromgren h-block is in standard u,v,b,y order (the ReadMe v/b
-# label swap is a documentation typo, not a data swap -- confirmed by external
-# cross-check against CB2011 and CS22).
-# ---------------------------------------------------------------------------
+
 
 
 def _parse_cs22(path: str, bands: List[Tuple[str, str]]) -> int:
-    """CS22 ATLAS file: multi-metallicity, has a microturbulent-velocity (xi)
-    column, blocks are g, h, chi2 (no mu_cri). Keep xi = 2.0 km/s only.
-
-    `bands` is an ordered list of (filter_code, source_tag) pairs, one per band
-    column (all CS22 bands use the CS22_CS23 tag, but the per-band form keeps
-    both parsers symmetric).
-
-    Token layout: logg Teff Z xi | g[0..n-1] | h[0..n-1] | chi2[0..n-1]
-    Total tokens = 4 + 3*nbands.
-    """
+    
     nb = len(bands)
     expected = 4 + 3 * nb
     count = 0
@@ -193,19 +151,7 @@ def _parse_cs22(path: str, bands: List[Tuple[str, str]]) -> int:
 
 
 def _parse_cs23(path: str, bands: List[Tuple[str, str]]) -> int:
-    """CS23 PHOENIX-COND file: solar metallicity only, xi already fixed at 2.0,
-    blocks are g, h, mu_cri, chi2. mu_cri is read past but not stored.
-
-    `bands` is an ordered list of (filter_code, source_tag) pairs, one per band
-    column in the file. Passing the source tag per band lets each band land
-    under its correct registry tag as it is parsed -- in particular CHEOPS, which
-    shares this file with Gaia/Kepler/TESS but has no ATLAS counterpart, is
-    stored under CS23_ONLY while its file-mates are stored under CS22_CS23. No
-    after-the-fact re-keying is needed.
-
-    Token layout: logg Teff Z xi | g[0..n-1] | h[0..n-1] | mucri[0..n-1] | chi2[0..n-1]
-    Total tokens = 4 + 4*nbands.
-    """
+    
     nb = len(bands)
     expected = 4 + 4 * nb
     count = 0
@@ -235,13 +181,7 @@ def _parse_cs23(path: str, bands: List[Tuple[str, str]]) -> int:
 
 
 def _parse_cbb_power2(path: str, source: str) -> int:
-    """CBB power-2 file (cbbpower2.txt): 3 header lines, then each record spans
-    three consecutive data lines sharing logg/Teff/[M/H]/xi -- line 1 = g,
-    line 2 = h, line 3 = chi2 (the header's 'xi(CBBED)' label on line 3 is a
-    typo; the value is chi2). Keep xi = 2.0 km/s only.
-
-    Mirrors the quadratic _parse_cbbquadratic 3-line grouping.
-    """
+   
     count = 0
     buf: List[Tuple[float, float, float, float, float]] = []  # (logg, teff, feh, xi, coeff)
     with open(path, "r", encoding="ascii", errors="replace") as fh:
@@ -279,14 +219,7 @@ def _parse_cbb_power2(path: str, source: str) -> int:
 
 
 
-# ---------------------------------------------------------------------------
-# Source-file layout. Files live in per-catalog subfolders of data/:
-#   data/c22/  -> CS22 ATLAS (multi-metallicity)
-#   data/c23/  -> CS23 PHOENIX-COND (solar, M2 truncation)
-#   data/cbb/  -> CBB power-2 (ATLAS)
-#
-# Each CS22/CS23 file lists its bands in the on-file column order.
-# ---------------------------------------------------------------------------
+
 import pickle
 
 CACHE_FILENAME = "tables.pkl"
@@ -301,9 +234,7 @@ _CS22_TABLE2_BANDS = [("u*", _T), ("g*", _T), ("r*", _T), ("i*", _T), ("z*", _T)
 _CS22_TABLE3_BANDS = [("u", _T), ("v", _T), ("b", _T), ("y", _T), ("U", _T), ("B", _T),
                       ("V", _T), ("R", _T), ("I", _T), ("J", _T), ("H", _T), ("K", _T)]
 
-# CS23 table2 carries CHEOPS, which has no ATLAS source -> tag it CS23_ONLY here,
-# its file-mates CS22_CS23. This is why CHEOPS lands under the PHOENIX-only tag
-# directly, with no re-keying.
+
 _CS23_TABLE2_BANDS = [("G_BP", _T), ("G", _T), ("G_RP", _T), ("Kp", _T), ("TESS", _T), ("CHEOPS", _P)]
 _CS23_TABLE6_BANDS = [("u*", _T), ("g*", _T), ("r*", _T), ("i*", _T), ("z*", _T)]
 _CS23_TABLE10_BANDS = [("u", _T), ("v", _T), ("b", _T), ("y", _T), ("U", _T), ("B", _T),
@@ -403,10 +334,7 @@ def load_tables(data_dir: str, use_cache: bool = True) -> Dict[str, int]:
 
 
 
-# ---------------------------------------------------------------------------
-# Lookup / interpolation (unchanged from the quadratic system except that the
-# two interpolated coefficients are reported as g and h instead of u1 and u2).
-# ---------------------------------------------------------------------------
+
 
 
 def _resolve_table_key(filter_code: str, model: str) -> Tuple[str, str, str]:

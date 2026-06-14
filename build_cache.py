@@ -28,10 +28,7 @@ def main() -> int:
         print(f"  {name:20s} {n:>7d} rows")
     print(f"wrote {cache_path} ({size_kb:.0f} KB)")
 
-    # Row-count invariants (rows kept per source file at xi = 2 km/s):
-    #   CS22 ATLAS files (multi-metallicity) and the CBB power-2 file: 7695 each.
-    #   CS23 PHOENIX-COND files (solar, M2 truncation): 823 each.
-    # These are the same shared-ATLAS9-geometry counts verified during data review.
+    
     expected = {
         "c22/table1.dat":    7695,
         "c22/table2.dat":    7695,
